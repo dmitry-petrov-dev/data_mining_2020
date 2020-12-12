@@ -1,7 +1,6 @@
-import re
-import base64
+
 import scrapy
-import pymongo
+from ..loaders import AutoYoulaLoader
 
 
 class AutoyoulaSpider(scrapy.Spider):
@@ -14,10 +13,14 @@ class AutoyoulaSpider(scrapy.Spider):
         'pagination': '.Paginator_block__2XAPy a.Paginator_button__u1e7D',
         'ads': 'article.SerpSnippet_snippet__3O1t2 a.SerpSnippet_name__3F7Yu'
     }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.db = pymongo.MongoClient()['gb_parse_11'][self.name]
+    itm_template = {
+        "title": '//div[@data-target="advert-title"]/text()',
+        "images": '//figure[contains(@class,"PhotoGallery_photo")]//img/@src',
+        "description": '//div[contains(@class, "AdvertCard_descriptionInner")]//text()',
+        "autor": '//script[contains(text(), "window.transitState =")]/text()',
+        "specification": ' //div[contains(@class, "AdvertCard_specs")]/div/div[contains(@class, "AdvertSpecs_row")]',
+        "phone": '//script[contains(text(), "window.transitState =")]/text()',
+    }
 
     def parse(self, response):
         for brand in response.css(self.css_query['brands']):
@@ -31,37 +34,19 @@ class AutoyoulaSpider(scrapy.Spider):
             yield response.follow(ads_page.attrib.get('href'), callback=self.ads_parse)
 
     def ads_parse(self, response):
-        data = {
-            'title': response.css('.AdvertCard_advertTitle__1S1Ak::text').get(),
-            'images': [img.attrib.get('src') for img in response.css('figure.PhotoGallery_photo__36e_r img')],
-            'description': response.css('div.AdvertCard_descriptionInner__KnuRi::text').get(),
-            'url': response.url,
-            'autor': self.get_autor(response),
-            'specification': self.get_specification(response),
-            'phone': self.get_phone(response)
-        }
+        loader = AutoYoulaLoader(response=response)
+        loader.add_value('url', response.url)
+        for name, selector in self.itm_template.items():
+            loader.add_xpath(name, selector)
+        # data = {
+        #     'title': response.css('.AdvertCard_advertTitle__1S1Ak::text').get(),
+        #     'images': [img.attrib.get('src') for img in response.css('figure.PhotoGallery_photo__36e_r img')],
+        #     'description': response.css('div.AdvertCard_descriptionInner__KnuRi::text').get(),
+        #     'url': response.url,
+        #     'autor': self.get_autor(response),
+        #     'specification': self.get_specification(response),
+        #     'phone': self.get_phone(response)
+        # }
+        yield loader.load_item()
 
-        self.db.insert(data)
 
-    def get_specification(self, response):
-        spec_dict = {}
-        for itm in response.css('div.AdvertSpecs_row__ljPcX'):
-            spec_dict[itm.css('div.AdvertSpecs_label__2JHnS::text').get()] = itm.css(
-                'div.AdvertSpecs_data__xK2Qx::text').get() or itm.css('a::text').get()
-        return spec_dict
-
-    def get_autor(self, response):
-        script = response.css('script:contains("window.transitState = decodeURIComponent")::text').get()
-        re_str = re.compile(r"youlaId%22%2C%22([0-9|a-zA-Z]+)%22%2C%22avatar")
-        result = re.findall(re_str, script)
-        return f'https://youla.ru/user/{result[0]}' if result else None
-
-    def get_phone(self, response):
-        script = response.css('script:contains("window.transitState = decodeURIComponent")::text').get()
-        re_str = re.compile(r"phone%22%2C%22([0-9|a-zA-Z]+)%3D%3D%22%2C%22time")
-        result = re.findall(re_str, script)
-        return self.decode_phone(result[0])
-
-    def decode_phone(self, b64_phone):
-        b64_phone = base64.b64decode(b64_phone.encode("UTF-8") + b'=' * (-len(b64_phone) % 4))
-        return base64.b64decode(b64_phone).decode('UTF-8')
