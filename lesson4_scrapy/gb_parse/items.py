@@ -21,3 +21,9 @@ class AutoYoulaItem(scrapy.Item):
     autor = scrapy.Field()
     specification = scrapy.Field()
     phone = scrapy.Field()
+
+class InstagramItem(scrapy.Item):
+    _id = scrapy.Field()
+    date_parse = scrapy.Field()
+    data = scrapy.Field()
+    images = scrapy.Field()

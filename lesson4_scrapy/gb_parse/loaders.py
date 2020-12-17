@@ -3,7 +3,7 @@ import base64
 from scrapy import Selector
 from scrapy.loader import ItemLoader
 from itemloaders.processors import TakeFirst, MapCompose
-from .items import AutoYoulaItem
+from .items import AutoYoulaItem, InstagramItem
 
 
 def get_specification(itm):
@@ -50,3 +50,8 @@ class AutoYoulaLoader(ItemLoader):
     specification_out = specification_out
     phone_in = MapCompose(get_phone)
     phone_out = TakeFirst()
+
+class InstagramLoader(ItemLoader):
+    default_item_class = InstagramItem
+    date_parse_out = TakeFirst()
+    data = TakeFirst()
