@@ -22,8 +22,24 @@ class AutoYoulaItem(scrapy.Item):
     specification = scrapy.Field()
     phone = scrapy.Field()
 
+
 class InstagramItem(scrapy.Item):
     _id = scrapy.Field()
     date_parse = scrapy.Field()
     data = scrapy.Field()
     images = scrapy.Field()
+
+
+class InstagramUser(InstagramItem):
+    user_id = scrapy.Field()
+    username = scrapy.Field()
+
+
+class InstagramFollowedUser(InstagramUser):
+    followed_user_id = scrapy.Field()
+    followed_users = scrapy.Field()
+
+
+class InstagramFollowUser(InstagramUser):
+    follow_user_id = scrapy.Field()
+    follow_users = scrapy.Field()
